@@ -46,6 +46,7 @@ const defaultOptions = {
   },
   sourceMaps: true,
   //# workarounds
+  // TODO: use false, CRAv2 and CRAv1 (instead of true)
   fixWebpackChunksIssue: true,
   removeBlobs: true,
   fixInsertRule: true,
@@ -372,7 +373,8 @@ const fixWebpackChunksIssue = ({
   page,
   basePath,
   http2PushManifest,
-  inlineCss
+  inlineCss,
+  crav2
 }) => {
   return page.evaluate(
     (basePath, http2PushManifest, inlineCss) => {
@@ -418,7 +420,7 @@ const fixWebpackChunksIssue = ({
       for (let i = chunkScripts.length - 1; i >= 0; --i) {
         const x = chunkScripts[i];
         if (x.parentElement && mainScript.parentNode) {
-          x.parentElement.removeChild(x);
+          if (!crav2) x.parentElement.removeChild(x);
           createLink(x);
         }
       }
@@ -633,7 +635,8 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
           page,
           basePath,
           http2PushManifest,
-          inlineCss: options.inlineCss
+          inlineCss: options.inlineCss,
+          crav2: options.fixWebpackChunksIssue === 'CRAv2'
         });
       }
       if (options.asyncScriptTags) await asyncScriptTags({ page });
