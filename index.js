@@ -369,19 +369,18 @@ const asyncScriptTags = ({ page }) => {
   });
 };
 
-const fixWebpackChunksIssue = ({
+const fixWebpackChunksIssuev1 = ({
   page,
   basePath,
   http2PushManifest,
-  inlineCss,
-  crav2
+  inlineCss
 }) => {
   return page.evaluate(
-    (basePath, http2PushManifest, inlineCss, crav2) => {
+    (basePath, http2PushManifest, inlineCss) => {
       const localScripts = Array.from(document.scripts).filter(
         x => x.src && x.src.startsWith(basePath)
       );
-      // CRA v1|v2
+      // CRA v1|v2.alpha
       const mainRegexp = /main\.[\w]{8}.js|main\.[\w]{8}\.chunk\.js/;
       const mainScript = localScripts.find(x => mainRegexp.test(x.src));
       const firstStyle = document.querySelector("style");
@@ -420,15 +419,84 @@ const fixWebpackChunksIssue = ({
       for (let i = chunkScripts.length - 1; i >= 0; --i) {
         const x = chunkScripts[i];
         if (x.parentElement && mainScript.parentNode) {
-          if (!crav2) x.parentElement.removeChild(x);
+          x.parentElement.removeChild(x);
           createLink(x);
         }
       }
     },
     basePath,
     http2PushManifest,
-    inlineCss,
-    crav2
+    inlineCss
+  );
+};
+
+const fixWebpackChunksIssuev2 = ({
+  page,
+  basePath,
+  http2PushManifest,
+  inlineCss
+}) => {
+  return page.evaluate(
+    (basePath, http2PushManifest, inlineCss) => {
+      const localScripts = Array.from(document.scripts).filter(
+        x => x.src && x.src.startsWith(basePath)
+      );
+      // CRA v2
+      const mainRegexp = /main\.[\w]{8}\.chunk\.js/;
+      const mainScript = localScripts.find(x => mainRegexp.test(x.src));
+      const firstStyle = document.querySelector("style");
+
+      if (!mainScript) return;
+
+      const chunkRegexp = /(\w+)\.[\w]{8}\.chunk\.js/g;
+
+      const headScripts = Array.from(document.querySelectorAll("head script"))
+        .filter(x => x.src && x.src.startsWith(basePath))
+        .filter(x => {
+          const matched = chunkRegexp.exec(x.src);
+          // we need to reset state of RegExp https://stackoverflow.com/a/11477448
+          chunkRegexp.lastIndex = 0;
+          return matched;
+        });
+
+      const chunkScripts = localScripts.filter(x => {
+        const matched = chunkRegexp.exec(x.src);
+        // we need to reset state of RegExp https://stackoverflow.com/a/11477448
+        chunkRegexp.lastIndex = 0;
+        return matched;
+      });
+
+      const createLink = x => {
+        if (http2PushManifest) return;
+        const linkTag = document.createElement("link");
+        linkTag.setAttribute("rel", "preload");
+        linkTag.setAttribute("as", "script");
+        linkTag.setAttribute("href", x.src.replace(basePath, ""));
+        if (inlineCss) {
+          firstStyle.parentNode.insertBefore(linkTag, firstStyle);
+        } else {
+          document.head.appendChild(linkTag);
+        }
+      };
+
+      for (let i = headScripts.length; i <= chunkScripts.length - 1; i++) {
+        const x = chunkScripts[i];
+        if (x.parentElement && mainScript.parentNode) {
+          createLink(x);
+        }
+      }
+
+      for (let i = headScripts.length - 1; i >= 0; --i) {
+        const x = headScripts[i];
+        if (x.parentElement && mainScript.parentNode) {
+          x.parentElement.removeChild(x);
+          createLink(x);
+        }
+      }
+    },
+    basePath,
+    http2PushManifest,
+    inlineCss
   );
 };
 
@@ -551,15 +619,15 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
     return Promise.reject("");
   }
 
-  fs.createReadStream(path.join(sourceDir, "index.html")).pipe(
-    fs.createWriteStream(path.join(sourceDir, "200.html"))
-  );
+  fs
+    .createReadStream(path.join(sourceDir, "index.html"))
+    .pipe(fs.createWriteStream(path.join(sourceDir, "200.html")));
 
   if (destinationDir !== sourceDir && options.saveAs === "html") {
     mkdirp.sync(destinationDir);
-    fs.createReadStream(path.join(sourceDir, "index.html")).pipe(
-      fs.createWriteStream(path.join(destinationDir, "200.html"))
-    );
+    fs
+      .createReadStream(path.join(sourceDir, "index.html"))
+      .pipe(fs.createWriteStream(path.join(destinationDir, "200.html")));
   }
 
   const server = options.externalServer ? null : startServer(options);
@@ -631,13 +699,19 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
           }
         }
       }
-      if (options.fixWebpackChunksIssue) {
-        await fixWebpackChunksIssue({
+      if (options.fixWebpackChunksIssue === "CRAv2") {
+        await fixWebpackChunksIssuev2({
           page,
           basePath,
           http2PushManifest,
-          inlineCss: options.inlineCss,
-          crav2: options.fixWebpackChunksIssue === "CRAv2"
+          inlineCss: options.inlineCss
+        });
+      } else if (options.fixWebpackChunksIssue) {
+        await fixWebpackChunksIssuev1({
+          page,
+          basePath,
+          http2PushManifest,
+          inlineCss: options.inlineCss
         });
       }
       if (options.asyncScriptTags) await asyncScriptTags({ page });
