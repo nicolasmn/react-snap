@@ -108,7 +108,7 @@ const enableLogging = opt => {
 const getLinks = async opt => {
   const { page } = opt;
   const anchors = await page.evaluate(() =>
-    Array.from(document.querySelectorAll("a")).map(anchor => {
+    Array.from(document.querySelectorAll("a,link[rel='alternate']")).map(anchor => {
       if (anchor.href.baseVal) {
         const a = document.createElement("a");
         a.href = anchor.href.baseVal;
@@ -173,9 +173,18 @@ const crawl = async opt => {
    * @returns {void}
    */
   const addToQueue = newUrl => {
-    const { hostname, search, hash } = url.parse(newUrl);
+    const { hostname, search, hash, port } = url.parse(newUrl);
     newUrl = newUrl.replace(`${search || ""}${hash || ""}`, "");
-    if (hostname === "localhost" && !uniqueUrls.has(newUrl) && !streamClosed) {
+
+    // Ensures that only link on the same port are crawled
+    //
+    // url.parse returns a string,
+    // but options port is passed by a user and default value is a number
+    // we are converting both to string to be sure
+    // Port can be null, therefore we need the null check
+    const isOnAppPort = port && port.toString() === options.port.toString();
+
+    if (hostname === "localhost" && isOnAppPort && !uniqueUrls.has(newUrl) && !streamClosed) {
       uniqueUrls.add(newUrl);
       enqued++;
       queue.write(newUrl);
@@ -211,6 +220,7 @@ const crawl = async opt => {
     if (!shuttingDown && !skipExistingFile) {
       try {
         const page = await browser.newPage();
+        await page._client.send("ServiceWorker.disable");
         await page.setCacheEnabled(options.puppeteer.cache);
         if (options.viewport) await page.setViewport(options.viewport);
         if (options.skipThirdPartyRequests)
@@ -240,7 +250,7 @@ const crawl = async opt => {
           const links = await getLinks({ page });
           links.forEach(addToQueue);
         }
-        afterFetch && (await afterFetch({ page, route, browser }));
+        afterFetch && (await afterFetch({ page, route, browser, addToQueue }));
         await page.close();
         console.log(`✅  crawled ${processed + 1} out of ${enqued} (${route})`);
       } catch (e) {
