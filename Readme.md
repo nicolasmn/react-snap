@@ -1,9 +1,9 @@
 # react-snap [![Build Status](https://travis-ci.org/nicolasmn/react-snap.svg?branch=master)](https://travis-ci.org/nicolasmn/react-snap) [![Twitter Follow](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow)](https://twitter.com/stereobooster)
 
-## Differences from original Repo (`stereobooster/react-snap`)
+## Differences from original repo ([stereobooster/react-snap](https://github.com/stereobooster/react-snap))
 
 - Allows to configure options via `.snaprc.js` config file.
-- Integrates `kontrollanten/react-snap`s functionallity to remove _some_ scripts from the build via the `removeScriptTags` option wich accepts a CSS selector string.
+- Integrates [kontrollanten/react-snap](https://github.com/kontrollanten/react-snap/tree/remove_some_scripts)s functionallity to remove _some_ scripts from the build via `removeScriptTags` option wich accepts a CSS selector string.
 
 ---
 
