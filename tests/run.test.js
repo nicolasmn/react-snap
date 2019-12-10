@@ -363,12 +363,27 @@ describe("removeStyleTags", () => {
 
 describe("removeScriptTags", () => {
   const source = "tests/examples/other";
-  const include = ["/with-script.html"];
-  const { fs, filesCreated, content } = mockFs();
-  beforeAll(() => snapRun(fs, { source, include, removeScriptTags: true }));
-  test("removes all <script>", () => {
+
+  test("removes all <script>", async () => {
+    const include = ["/with-script.html"];
+    const { fs, filesCreated, content } = mockFs();
+    await snapRun(fs, { source, include, removeScriptTags: true });
+
     expect(filesCreated()).toEqual(1);
     expect(content(0)).not.toMatch("<script");
+  });
+
+  test("removes all <script> matching selectors", async () => {
+    const include = ["/with-multiple-script.html"];
+    const { fs, filesCreated, content } = mockFs();
+    const removeScriptTags = [
+      ':not(.keepMe)',
+    ];
+    await snapRun(fs, { source, include, removeScriptTags });
+
+    expect(filesCreated()).toEqual(1);
+    expect(content(0).match(/<script/g).length).toEqual(1);
+    expect(content(0)).toMatch(`<script class="keepMe"`);
   });
 });
 

@@ -229,12 +229,16 @@ const removeStyleTags = ({ page }) =>
     });
   });
 
-const removeScriptTags = ({ page }) =>
-  page.evaluate(() => {
-    Array.from(document.querySelectorAll("script")).forEach(ell => {
+const removeScriptTags = ({ page, selectors }) =>
+  page.evaluate((selectors) => {
+    const selectorsString = selectors === true
+      ? 'script'
+      : selectors.map(sel => `script${sel}`).join(', ');
+
+    Array.from(document.querySelectorAll(selectorsString)).forEach(ell => {
       ell.parentElement && ell.parentElement.removeChild(ell);
     });
-  });
+  }, selectors);
 
 const preloadPolyfill = nativeFs.readFileSync(
   `${__dirname}/vendor/preload_polyfill.min.js`,
@@ -731,7 +735,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
     afterFetch: async ({ page, route, browser, addToQueue }) => {
       const pageUrl = `${basePath}${route}`;
       if (options.removeStyleTags) await removeStyleTags({ page });
-      if (options.removeScriptTags) await removeScriptTags({ page });
+      if (options.removeScriptTags) await removeScriptTags({ page, selectors: options.removeScriptTags });
       if (options.removeBlobs) await removeBlobs({ page });
       if (options.inlineCss) {
         const { cssFiles } = await inlineCss({
