@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const fs = require("fs");
 const url = require("url");
 const { run } = require("./index.js");
 const {
@@ -8,6 +9,12 @@ const {
   devDependencies,
   dependencies
 } = require(`${process.cwd()}/package.json`);
+
+const snaprcPath = `${process.cwd()}/.snaprc.js`;
+let snaprc = {}
+if (fs.existsSync(snaprcPath)) {
+  snaprc = require(snaprcPath);
+}
 
 const publicUrl = process.env.PUBLIC_URL || homepage;
 
@@ -41,7 +48,8 @@ if (parcel) {
 run({
   publicPath: publicUrl ? url.parse(publicUrl).pathname : "/",
   fixWebpackChunksIssue,
-  ...reactSnap
+  ...reactSnap,
+  ...snaprc
 }).catch(error => {
   console.error(error);
   process.exit(1);
